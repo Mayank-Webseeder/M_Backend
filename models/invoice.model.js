@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Counter = require("./cnt");
+const Counter = require("./Cnt");
 
 const invoiceSchema = new mongoose.Schema({
   invoiceNumber: {
