@@ -358,7 +358,7 @@ exports.updateAccountStatus = async (req, res) => {
     const { orderId, status } = req.body;
     
     // Validate that the status is one of the allowed values
-    const allowedStatuses = ['accounts_pending', 'accounts_billed', 'accounts_paid'];
+    const allowedStatuses = ['accounts_pending', 'accounts_billed', 'accounts_paid', 'order_completed'];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -380,11 +380,7 @@ exports.updateAccountStatus = async (req, res) => {
     // Update the order status
     order.status = status;
     await order.save();
-    
-    // Emit a socket event to notify other users (similar to changeStatusByCutout function)
-    // This would typically be handled by a separate function or service
-    // For example:
-    // notifyOrderUpdate(req, order);
+  
 
     const accountUser = await User.findById(order.assignedTo);
           
