@@ -59,13 +59,25 @@ const nodemailer = require("nodemailer");
 
 
 // Nodemailer transporter setup
+// const transporter = nodemailer.createTransport({
+//     service: "gmail",
+//     auth: {
+//         user: process.env.EMAIL_USER,
+//         pass: process.env.EMAIL_PASS,
+//     },
+// });
+
+
 const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.hostinger.com",
+    port: 587,
+    secure: false, // use TLS
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
 });
+
 
 
 const sendEmail = async (email, password, name) => {
@@ -210,7 +222,7 @@ const sendEmail = async (email, password, name) => {
 
         // Get path to logo file
         const path = require('path');
-        const logoPath = path.resolve(__dirname, '../../Metal-frontend/public/logo.png');
+        const logoPath = path.resolve(__dirname, '../../M_frontend/public/logo.png');
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
