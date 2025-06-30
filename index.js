@@ -63,6 +63,7 @@ const superAdminRoutes = require("./routes/superAdmin.routes");
 const accountRoutes = require("./routes/account.routes");
 const invoiceRoutes = require("./routes/invoice.routes.js");
 const chalanRoutes = require("./routes/challan.routes.js");
+const galleryRoutes = require("./routes/gallery.routes.js");
 
 app.use("/api/v1/auth", userRoutes);
 app.use("/api/v1/admin", adminRoutes);
@@ -71,6 +72,7 @@ app.use("/api/v1/d", designerRoutes);
 app.use("/api/v1/ac", accountRoutes);
 app.use("/api/v1/invoices", invoiceRoutes);
 app.use("/api/v1/challan", chalanRoutes);
+app.use("/api/v1/gallery", galleryRoutes);
 
 app.get("/", (req, res) => {
   return res.json({ message: "Your server is up and running" });

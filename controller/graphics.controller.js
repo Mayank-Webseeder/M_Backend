@@ -795,10 +795,104 @@ exports.updateWorkQueueStatus = async (req, res) => {
 const { cadFileUpload } = require('../utils/CadFileUploader');
 const { textFileUpload } = require('../utils/TextFileUploader');
 const archiver = require('archiver');
+const Gallery = require("../models/Gallery");
+
+// exports.uploadFile = async (req, res) => {
+//   try {
+//     const { orderId } = req.body;
+
+//     if (!orderId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Order ID is required"
+//       });
+//     }
+
+//     const { files } = req;
+
+//     // Check if files were provided
+//     if (!files || Object.keys(files).length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No files were uploaded"
+//       });
+//     }
+
+//     // Process CAD files
+//     const cadFiles = files.cadFiles ?
+//       (Array.isArray(files.cadFiles) ? files.cadFiles : [files.cadFiles]) :
+//       [];
+
+//     // Process image files
+//     const imageFiles = files.images ?
+//       (Array.isArray(files.images) ? files.images : [files.images]) :
+//       [];
+
+//     // Process text files (not compulsory)
+//     const textFiles = files.textFiles ?
+//       (Array.isArray(files.textFiles) ? files.textFiles : [files.textFiles]) :
+//       [];
+
+
+//     // Check if both types of files are present
+//     if (cadFiles.length === 0 || imageFiles.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Both CAD files and images are required"
+//       });
+//     }
+
+//     // Upload CAD files
+//     const cadUploadResults = await cadFileUpload(cadFiles);
+
+//     // Upload image files
+//     const imageUploadResults = await localFileUpload(imageFiles);
+
+//     // Extract file paths from upload results
+//     const cadFilePaths = cadUploadResults.map(file => file.path);
+//     const imagePaths = imageUploadResults.map(file => file.path);
+
+//     // Upload text files if any are provided
+//     let textFilePaths = [];
+//     if (textFiles.length > 0) {
+//       const textUploadResults = await textFileUpload(textFiles);
+//       textFilePaths = textUploadResults.map(file => file.path);
+//     }
+
+//     // Create new CAD document in the database
+//     const newCadEntry = await Cad.create({
+//       order: orderId,
+//       photo: imagePaths,
+//       CadFile: cadFilePaths,
+//       textFiles: textFilePaths
+//     });
+
+//     await Log.create({
+//       orderId: orderId,
+//       changes: `Uploaded files - CAD: ${cadFilePaths.length}, Images: ${imagePaths.length}, Text: ${textFilePaths.length}`
+//     });
+
+//     // Return success response with created document
+//     return res.status(201).json({
+//       success: true,
+//       message: "Files uploaded and saved successfully",
+//       data: newCadEntry
+//     });
+
+//   } catch (error) {
+//     console.error("Error in uploadFile controller:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error uploading files",
+//       error: error.message
+//     });
+//   }
+// };
 
 exports.uploadFile = async (req, res) => {
   try {
     const { orderId } = req.body;
+    const userId = req.user.id; // Assuming auth middleware provides user ID
 
     if (!orderId) {
       return res.status(400).json({
@@ -832,12 +926,19 @@ exports.uploadFile = async (req, res) => {
       (Array.isArray(files.textFiles) ? files.textFiles : [files.textFiles]) :
       [];
 
-
     // Check if both types of files are present
     if (cadFiles.length === 0 || imageFiles.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Both CAD files and images are required"
+      });
+    }
+
+    // Ensure equal number of CAD files and images for gallery pairing
+    if (cadFiles.length !== imageFiles.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Number of CAD files must match number of images for proper pairing"
       });
     }
 
@@ -866,6 +967,32 @@ exports.uploadFile = async (req, res) => {
       textFiles: textFilePaths
     });
 
+    // Get order details for gallery
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // Create gallery entries (1 CAD file paired with 1 image)
+    try {
+      await Gallery.createGalleryEntries(
+        order.orderId, 
+        orderId, 
+        cadFilePaths, 
+        imagePaths, 
+        userId,
+        newCadEntry._id
+      );
+      
+      console.log(`Created ${cadFilePaths.length} gallery entries for order ${order.orderId}`);
+    } catch (galleryError) {
+      console.error("Error creating gallery entries:", galleryError);
+      // Don't fail the main upload, just log the error
+    }
+
     await Log.create({
       orderId: orderId,
       changes: `Uploaded files - CAD: ${cadFilePaths.length}, Images: ${imagePaths.length}, Text: ${textFilePaths.length}`
@@ -875,7 +1002,8 @@ exports.uploadFile = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Files uploaded and saved successfully",
-      data: newCadEntry
+      data: newCadEntry,
+      galleryEntriesCreated: cadFilePaths.length
     });
 
   } catch (error) {
