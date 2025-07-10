@@ -322,6 +322,7 @@ exports.createOrder = async (req, res) => {
         phoneNo,
         gstNo,
         panNo,
+        address
       } = req.body;
 
       // Validate new customer required fields
@@ -354,14 +355,6 @@ exports.createOrder = async (req, res) => {
 
       // Create address if provided
       let savedAddress = null;
-      const address = {
-        street: req.body['address[street]'],
-        city: req.body['address[city]'],
-        state: req.body['address[state]'],
-        pincode: req.body['address[pincode]'],
-        additionalDetail: req.body['address[additionalDetail]']
-      };
-
       if (address && (address.street || address.city || address.state || address.pincode)) {
         // Only require all address fields if any address field is provided
         if (address.street && address.city && address.state && address.pincode) {
