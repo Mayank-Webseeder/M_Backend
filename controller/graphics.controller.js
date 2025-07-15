@@ -1118,6 +1118,231 @@ exports.uploadFile = async (req, res) => {
   }
 };
 
+exports.uploadFileToDB = async (req, res) => {
+  try {
+    const userId = req.user.id; // From auth middleware
+    const { files } = req;
+
+    if (!files || Object.keys(files).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No files were uploaded"
+      });
+    }
+
+    // Process CAD files (now optional)
+    const cadFiles = files.cadFiles
+      ? (Array.isArray(files.cadFiles) ? files.cadFiles : [files.cadFiles])
+      : [];
+
+    // Process image files (required)
+    const imageFiles = files.images
+      ? (Array.isArray(files.images) ? files.images : [files.images])
+      : [];
+
+    // Process text files
+    const textFiles = files.textFiles
+      ? (Array.isArray(files.textFiles) ? files.textFiles : [files.textFiles])
+      : [];
+
+    // Ensure at least image files are present
+    if (imageFiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one image file is required"
+      });
+    }
+
+    // Upload CAD files if any
+    let cadUploadResults = [];
+    if (cadFiles.length > 0) {
+      cadUploadResults = await cadFileUpload(cadFiles);
+    }
+
+    // Upload image files (required)
+    let imageUploadResults = [];
+    if (imageFiles.length > 0) {
+      imageUploadResults = await localFileUpload(imageFiles);
+    }
+
+    // Upload text files if any
+    let textUploadResults = [];
+    if (textFiles.length > 0) {
+      textUploadResults = await textFileUpload(textFiles);
+    }
+
+    // Create DB entry in Cad collection
+    const newCadEntry = await Cad.create({
+      photo: imageUploadResults.map(file => file.path),
+      CadFile: cadUploadResults.map(file => file.path),
+      textFiles: textUploadResults.map(file => file.path || ''),
+      uploadedBy: userId
+    });
+
+    // Create gallery entries for images
+    // If both CAD and images exist, pair them; otherwise create gallery entries for images only
+    const cadFilePaths = cadUploadResults.map(file => file.path);
+    const imagePaths = imageUploadResults.map(file => file.path);
+
+    try {
+      if (cadFilePaths.length > 0) {
+        // If CAD files exist, create paired gallery entries
+        const minLength = Math.min(cadFilePaths.length, imagePaths.length);
+        for (let i = 0; i < minLength; i++) {
+          await Gallery.create({
+            orderId: `DB-${Date.now()}-${i}`, // Generate unique orderId for database uploads
+            order: null, // No specific order for direct DB uploads
+            cadFile: cadFilePaths[i],
+            image: imagePaths[i],
+            cadFileName: cadFilePaths[i].split('/').pop(),
+            imageName: imagePaths[i].split('/').pop(),
+            uploadedBy: userId,
+            originalCadDoc: newCadEntry._id
+          });
+        }
+        
+        // Handle remaining images if there are more images than CAD files
+        for (let i = minLength; i < imagePaths.length; i++) {
+          await Gallery.create({
+            orderId: `DB-${Date.now()}-${i}`, // Generate unique orderId for database uploads
+            order: null, // No specific order for direct DB uploads
+            cadFile: '', // Empty CAD file for image-only entries
+            image: imagePaths[i],
+            cadFileName: '',
+            imageName: imagePaths[i].split('/').pop(),
+            uploadedBy: userId,
+            originalCadDoc: newCadEntry._id
+          });
+        }
+      } else {
+        // If no CAD files, create gallery entries for images only
+        for (let i = 0; i < imagePaths.length; i++) {
+          await Gallery.create({
+            orderId: `DB-${Date.now()}-${i}`, // Generate unique orderId for database uploads
+            order: null, // No specific order for direct DB uploads
+            cadFile: '', // Empty CAD file for image-only entries
+            image: imagePaths[i],
+            cadFileName: '',
+            imageName: imagePaths[i].split('/').pop(),
+            uploadedBy: userId,
+            originalCadDoc: newCadEntry._id
+          });
+        }
+      }
+
+      console.log(`Created ${imagePaths.length} gallery entries for database upload`);
+    } catch (galleryError) {
+      console.error("Error creating gallery entries:", galleryError);
+      // Don't fail the main upload, just log the error
+    }
+
+    // Log upload
+    await Log.create({
+      changes: `Direct DB Upload - CAD: ${cadUploadResults.length}, Images: ${imageUploadResults.length}, Text: ${textUploadResults.length}`,
+      userId
+    });
+
+    // Respond with success
+    return res.status(201).json({
+      success: true,
+      message: "Files uploaded successfully",
+      data: newCadEntry,
+      galleryEntriesCreated: imagePaths.length
+    });
+
+  } catch (error) {
+    console.error("Error in uploadFileToDB controller:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error uploading files",
+      error: error.message
+    });
+  }
+};
+
+// exports.uploadFileToDB = async (req, res) => {
+//   try {
+//     const userId = req.user.id; // From auth middleware
+//     const { files } = req;
+
+//     if (!files || Object.keys(files).length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No files were uploaded"
+//       });
+//     }
+
+//     // Process CAD files
+//     const cadFiles = files.cadFiles
+//       ? (Array.isArray(files.cadFiles) ? files.cadFiles : [files.cadFiles])
+//       : [];
+
+//     // Process image files
+//     const imageFiles = files.images
+//       ? (Array.isArray(files.images) ? files.images : [files.images])
+//       : [];
+
+//     // Process text files
+//     const textFiles = files.textFiles
+//       ? (Array.isArray(files.textFiles) ? files.textFiles : [files.textFiles])
+//       : [];
+
+//     // Ensure at least one of CAD or image files is present
+//     if (cadFiles.length === 0 && imageFiles.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "At least one CAD file or image file is required"
+//       });
+//     }
+
+//     // Upload CAD files if any
+//     let cadUploadResults = [];
+//     if (cadFiles.length > 0) {
+//       cadUploadResults = await cadFileUpload(cadFiles);
+//     }
+
+//     // Upload image files if any
+//     let imageUploadResults = [];
+//     if (imageFiles.length > 0) {
+//       imageUploadResults = await localFileUpload(imageFiles);
+//     }
+
+//     // Upload text files if any
+//     let textUploadResults = [];
+//     if (textFiles.length > 0) {
+//       textUploadResults = await textFileUpload(textFiles);
+//     }
+
+//     // Create DB entry
+//     const newCadEntry = await Cad.create({
+//       photo: imageUploadResults.map(file => file.path),
+//       CadFile: cadUploadResults.map(file => file.path),
+//       textFiles: textUploadResults.map(file => file.path || ''),
+//       uploadedBy: userId
+//     });
+
+//     // Log upload
+//     await Log.create({
+//       changes: `Uploaded files - CAD: ${cadUploadResults.length}, Images: ${imageUploadResults.length}, Text: ${textUploadResults.length}`,
+//       userId
+//     });
+
+//     // Respond with success
+//     return res.status(201).json({
+//       success: true,
+//       message: "Files uploaded successfully",
+//       data: newCadEntry
+//     });
+
+//   } catch (error) {
+//     console.error("Error in uploadFile controller:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error uploading files",
+//       error: error.message
+//     });
+//   }
+// };
 
 
 // // Optionally - download all files of a specific type

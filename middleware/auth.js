@@ -6,8 +6,27 @@ const user = require("../models/user.models");
 //auth
 const auth= async(req,res,next)=>{ 
     try {
-        let token = req.params.token || req.query.token || req.body.token || req.cookies.token || req.header.token || req.header("Authorization");
+        // let token = req.params.token || req.query.token || req.body.token || req.cookies.token || req.header.token || req.header("Authorization");
+        
         //const token = req.cookies.token || req.header.token || req.header("Authorization");
+
+        let token = req.cookies.token 
+          || req.body.token 
+          || req.query.token 
+          || req.params.token 
+          || req.headers["authorization"];
+
+if (!token) {
+  return res.status(400).json({
+    success: false,
+    message: "token is missing"
+  });
+}
+
+// If token comes as "Bearer <token>", split it:
+if (token.startsWith("Bearer ")) {
+  token = token.split(" ")[1];
+}
         
         //if token missing then return error 
         if(!token){
@@ -44,7 +63,6 @@ const auth= async(req,res,next)=>{
     }
 
 }
-
 
 
 const isAdmin= async(req,res,next)=>{

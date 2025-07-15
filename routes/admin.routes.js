@@ -83,6 +83,7 @@ router.get('/assigned', auth, isGraphicsCutout, graphicController.getUserAssigne
 router.post('/updateWorkQueue', auth, isGraphics, graphicController.updateWorkQueueStatus);
 
 router.post('/fileupload', auth, isGraphics, graphicController.uploadFile);
+router.post('/add-to-db', auth, graphicController.uploadFileToDB);
 
 // Keep existing route for backward compatibility
 router.get('/files/download/:documentId/:fileIndex', auth, graphicController.downloadCadFile);
