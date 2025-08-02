@@ -44,6 +44,79 @@ const fs = require("fs");
 //     }
 // };
 
+// exports.localFileUpload = async (files) => {
+//     try {
+//         const filesArray = Array.isArray(files) ? files : [files];
+//         const uploadDir = path.join(__dirname, "../uploads");
+
+//         // Create upload directory if it doesn't exist
+//         if (!fs.existsSync(uploadDir)) {
+//             fs.mkdirSync(uploadDir, { recursive: true });
+//         }
+
+//         console.log(`Starting local upload of ${filesArray.length} files`);
+
+//         const uploadResults = await Promise.all(
+//             filesArray.map((file, index) => {
+//                 return new Promise((resolve, reject) => {
+//                     // Generate unique filename to prevent conflicts
+//                     const timestamp = Date.now();
+//                     const randomNum = Math.floor(Math.random() * 10000);
+//                     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
+//                     // const uniqueFileName = `${timestamp}_${randomNum}_${index}_${sanitizedName}`;
+//                     // const uploadPath = path.join(uploadDir, uniqueFileName);
+//                     // const relativePath = `/uploads/${uniqueFileName}`;
+//                     const uploadPath = path.join(uploadDir, file.name);
+//                     const relativePath = `/uploads/${file.name}`;
+
+//                     const ext = path.extname(file.name);
+
+//                     // Check if file size is reasonable (optional warning)
+//                     if (file.size > 100 * 1024 * 1024) { // 100MB warning
+//                         console.log(`Warning: Large file detected - ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+//                     }
+
+//                     // Move file with better error handling
+//                     file.mv(uploadPath, (err) => {
+//                         if (err) {
+//                             console.error(`Failed to upload file ${file.name}:`, err);
+//                             return reject(new Error(`Failed to upload ${file.name}: ${err.message}`));
+//                         }
+
+//                         // Verify file was actually created
+//                         if (!fs.existsSync(uploadPath)) {
+//                             return reject(new Error(`File ${file.name} was not created properly`));
+//                         }
+
+//                         resolve({
+//                             path: relativePath,
+//                             filename: file.name,
+//                             // uniqueFileName: uniqueFileName,
+//                             size: file.size,
+//                             type: file.mimetype,
+//                             extension: ext,
+//                             uploadedAt: new Date(),
+//                             fullPath: uploadPath
+//                         });
+//                     });
+//                 });
+//             })
+//         );
+
+//         console.log(`Successfully uploaded ${uploadResults.length} files locally`);
+
+//         // Log total size uploaded
+//         const totalSize = uploadResults.reduce((sum, file) => sum + file.size, 0);
+//         console.log(`Total upload size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+
+//         return uploadResults;
+
+//     } catch (error) {
+//         console.error("Local file upload failed:", error.message);
+//         throw new Error("Local file upload failed: " + error.message);
+//     }
+// };
+
 exports.localFileUpload = async (files) => {
     try {
         const filesArray = Array.isArray(files) ? files : [files];
@@ -56,19 +129,37 @@ exports.localFileUpload = async (files) => {
 
         console.log(`Starting local upload of ${filesArray.length} files`);
 
+        // Check for existing files in uploads directory and skip duplicates
+        const existingFiles = new Set();
+        try {
+            const existingFilesList = fs.readdirSync(uploadDir);
+            existingFilesList.forEach(filename => existingFiles.add(filename));
+        } catch (err) {
+            console.log('Could not read existing files, proceeding with upload');
+        }
+
         const uploadResults = await Promise.all(
             filesArray.map((file, index) => {
                 return new Promise((resolve, reject) => {
-                    // Generate unique filename to prevent conflicts
-                    const timestamp = Date.now();
-                    const randomNum = Math.floor(Math.random() * 10000);
-                    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
-                    // const uniqueFileName = `${timestamp}_${randomNum}_${index}_${sanitizedName}`;
-                    // const uploadPath = path.join(uploadDir, uniqueFileName);
-                    // const relativePath = `/uploads/${uniqueFileName}`;
+                    // Check if file already exists in uploads directory
+                    if (existingFiles.has(file.name)) {
+                        console.log(`Skipping duplicate file: ${file.name} (already exists in uploads)`);
+                        resolve({
+                            path: `/uploads/${file.name}`,
+                            filename: file.name,
+                            size: file.size,
+                            type: file.mimetype,
+                            extension: path.extname(file.name),
+                            uploadedAt: new Date(),
+                            fullPath: path.join(uploadDir, file.name),
+                            skipped: true,
+                            reason: 'File already exists in uploads directory'
+                        });
+                        return;
+                    }
+
                     const uploadPath = path.join(uploadDir, file.name);
                     const relativePath = `/uploads/${file.name}`;
-
                     const ext = path.extname(file.name);
 
                     // Check if file size is reasonable (optional warning)
@@ -91,25 +182,29 @@ exports.localFileUpload = async (files) => {
                         resolve({
                             path: relativePath,
                             filename: file.name,
-                            // uniqueFileName: uniqueFileName,
                             size: file.size,
                             type: file.mimetype,
                             extension: ext,
                             uploadedAt: new Date(),
-                            fullPath: uploadPath
+                            fullPath: uploadPath,
+                            skipped: false
                         });
                     });
                 });
             })
         );
 
-        console.log(`Successfully uploaded ${uploadResults.length} files locally`);
+        const actualUploads = uploadResults.filter(result => !result.skipped);
+        const skippedUploads = uploadResults.filter(result => result.skipped);
+
+        console.log(`Successfully uploaded ${actualUploads.length} files locally`);
+        console.log(`Skipped ${skippedUploads.length} duplicate files`);
 
         // Log total size uploaded
-        const totalSize = uploadResults.reduce((sum, file) => sum + file.size, 0);
+        const totalSize = actualUploads.reduce((sum, file) => sum + file.size, 0);
         console.log(`Total upload size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
 
-        return uploadResults;
+        return uploadResults; // Return all results including skipped ones
 
     } catch (error) {
         console.error("Local file upload failed:", error.message);
