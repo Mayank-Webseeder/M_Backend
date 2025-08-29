@@ -197,84 +197,95 @@ const Lead = require("../models/lead.model");
 const Customer = require("../models/customer.model");
 const Address = require("../models/Address.model");
 
+
 exports.createLead = async (req, res) => {
     try {
         const { firstName, lastName, email, phone, descriptions } = req.body;
 
-        if (!firstName || !lastName || !email || !phone) {
+        // firstName, lastName, phone are mandatory
+        if (!firstName || !lastName || !phone) {
             return res.status(400).json({
                 success: false,
-                message: "All fields are mandatory"
+                message: "First name, last name and phone are mandatory"
             });
         }
 
-        //check if lead exist with the same email or not
-        const existingLead = await Lead.findOne({ email });
+        // check if phone already exists
+        const existingLead = await Lead.findOne({ phone });
         if (existingLead) {
             return res.status(400).json({
                 success: false,
-                message: "A lead with this email id already exist"
+                message: "A lead with this phone number already exists"
             });
         }
 
-        //create a new lead 
+        // create a new lead 
         const newLead = new Lead({
             firstName,
             lastName,
-            email,
+            email,   // optional, can be duplicate
             phone,
             descriptions,
         });
 
-        //save the new lead to the database
         const savedLead = await newLead.save();
 
-        //return success response
         return res.status(201).json({
             success: true,
             message: "New lead created successfully",
             data: savedLead
-        })
+        });
 
     } catch (error) {
         return res.status(400).json({
             success: false,
-            message: "error occured in creating new lead",
+            message: "Error occurred in creating new lead",
             error: error.message,
-        })
+        });
     }
-}
+};
 
 exports.updateLead = async (req, res) => {
     try {
         const { id } = req.params;
         const { firstName, lastName, phone, descriptions, status, email } = req.body;
 
-        //find the lead and update the lead
         const lead = await Lead.findById(id);
         if (!lead) {
             return res.status(404).json({
                 success: false,
-                message: "Lead not found "
-            })
+                message: "Lead not found"
+            });
         }
 
         if (firstName) lead.firstName = firstName;
         if (lastName) lead.lastName = lastName;
-        if (phone) lead.phone = phone;
+
+        // phone must remain unique
+        if (phone) {
+            const phoneExists = await Lead.findOne({ phone, _id: { $ne: id } });
+            if (phoneExists) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Another lead already uses this phone number"
+                });
+            }
+            lead.phone = phone;
+        }
+
         if (descriptions) lead.descriptions = descriptions;
         if (status) lead.status = status;
-        if (email) lead.email = email;
 
-        //save the updated details
+        // email optional, can be duplicate
+        if (email !== undefined) lead.email = email;
+
         const updatedLead = await lead.save();
 
-        //return success response
         return res.status(200).json({
             success: true,
             message: "Lead has been updated successfully",
             data: updatedLead
-        })
+        });
 
     } catch (error) {
         console.log("Error in updating the lead");
@@ -282,9 +293,101 @@ exports.updateLead = async (req, res) => {
             success: false,
             message: "Error in updating the lead",
             error: error.message
-        })
+        });
     }
-}
+};
+
+
+
+
+// exports.createLead = async (req, res) => {
+//     try {
+//         const { firstName, lastName, email, phone, descriptions } = req.body;
+
+//         if (!firstName || !lastName || !email || !phone) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "All fields are mandatory"
+//             });
+//         }
+
+//         //check if lead exist with the same email or not
+//         const existingLead = await Lead.findOne({ email });
+//         if (existingLead) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "A lead with this email id already exist"
+//             });
+//         }
+
+//         //create a new lead 
+//         const newLead = new Lead({
+//             firstName,
+//             lastName,
+//             email,
+//             phone,
+//             descriptions,
+//         });
+
+//         //save the new lead to the database
+//         const savedLead = await newLead.save();
+
+//         //return success response
+//         return res.status(201).json({
+//             success: true,
+//             message: "New lead created successfully",
+//             data: savedLead
+//         })
+
+//     } catch (error) {
+//         return res.status(400).json({
+//             success: false,
+//             message: "error occured in creating new lead",
+//             error: error.message,
+//         })
+//     }
+// }
+
+// exports.updateLead = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const { firstName, lastName, phone, descriptions, status, email } = req.body;
+
+//         //find the lead and update the lead
+//         const lead = await Lead.findById(id);
+//         if (!lead) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "Lead not found "
+//             })
+//         }
+
+//         if (firstName) lead.firstName = firstName;
+//         if (lastName) lead.lastName = lastName;
+//         if (phone) lead.phone = phone;
+//         if (descriptions) lead.descriptions = descriptions;
+//         if (status) lead.status = status;
+//         if (email) lead.email = email;
+
+//         //save the updated details
+//         const updatedLead = await lead.save();
+
+//         //return success response
+//         return res.status(200).json({
+//             success: true,
+//             message: "Lead has been updated successfully",
+//             data: updatedLead
+//         })
+
+//     } catch (error) {
+//         console.log("Error in updating the lead");
+//         return res.status(400).json({
+//             success: false,
+//             message: "Error in updating the lead",
+//             error: error.message
+//         })
+//     }
+// }
 
 exports.deleteLead = async (req, res) => {
     try {
@@ -322,7 +425,7 @@ exports.convertToCustomer = async (req, res) => {
     try {
         const { id } = req.params;
         const lead = await Lead.findById(id);
-        
+
         if (!lead) {
             return res.status(404).json({
                 success: false,
@@ -338,7 +441,7 @@ exports.convertToCustomer = async (req, res) => {
             pincode: "000000",
             additionalDetail: "Created during lead conversion"
         });
-        
+
         const savedAddress = await defaultAddress.save();
 
         // Create a new customer from lead data with the address
