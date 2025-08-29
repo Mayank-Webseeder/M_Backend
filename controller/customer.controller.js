@@ -1,11 +1,108 @@
 const Customer = require("../models/customer.model");
-const Order= require("../models/order.model");
+const Order = require("../models/order.model");
 
 const Address = require("../models/Address.model")
 
-exports.createCustomer= async(req,res)=>{
+// exports.createCustomer= async(req,res)=>{
+//     try {
+//         const{
+//             firstName,
+//             lastName,
+//             email,
+//             phoneNo,
+//             gstNo,
+//             panNo,
+//             address,
+//         }=req.body;
+
+//         if(!firstName || !lastName  || !phoneNo ){
+//             return res.status(400).json({
+//                 success:false,
+//                 message:"All fields are mandatory"
+//             })
+//         };
+
+//         const trimmedEmail= email.trim()
+//         const existingCustomer= await Customer.findOne({email:trimmedEmail});
+
+//         if(existingCustomer){
+//             return res.status(400).json({
+//                 success:false,
+//                 message:"Customers already registered with this email id"
+//             })
+//         }
+
+//         // Check for existing phone number
+//         const existingPhone = await Customer.findOne({ phoneNo });
+//         if(existingPhone) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "Phone number already registered with another customer"
+//             });
+//         }
+
+//         let savedAddress = null;
+//         if(address){
+//             if(!address.street || !address.city || !address.state || !address.pincode){
+//                 return res.status(400).json({
+//                     success:false,
+//                     message:"Address must include street,city,state and pincode",
+//                 });
+//             }
+//             //create the address
+//             const newAddress = new Address({
+//                 street: address.street,
+//                 city:address.city,
+//                 state:address.state,
+//                 pincode:address.pincode,
+//                 additionalDetail:address.additionalDetail
+//             });
+
+//             savedAddress = await newAddress.save();
+//         }
+
+
+
+//         const newCustomer = new Customer({
+//             firstName,
+//             lastName,
+//             email,
+//             phoneNo,
+//             gstNo,
+//             panNo,
+//             address:savedAddress ?savedAddress._id : null,
+//             createdBy:req.user.id
+//         });
+
+//         const customer = await newCustomer.save();
+
+//         const populatedCustomer = await customer.populate("address");
+//         return res.status(200).json({
+//             success:true,
+//             message:"New Customer created successfully",
+//             populatedCustomer,
+//         })
+
+//     } catch (error) {
+//         console.error("problem in creating new customer",error)
+//         // Handle duplicate phone number error
+//         if(error.code === 11000 && error.keyPattern && error.keyPattern.phoneNo) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "Phone number already registered with another customer"
+//             });
+//         }
+//         return res.status(400).json({
+//             success:false,
+//             message:"problem in creating the new customer",
+//             error:error.message
+//         })
+//     }
+// }
+
+exports.createCustomer = async (req, res) => {
     try {
-        const{
+        const {
             firstName,
             lastName,
             email,
@@ -13,28 +110,31 @@ exports.createCustomer= async(req,res)=>{
             gstNo,
             panNo,
             address,
-        }=req.body;
+        } = req.body;
 
-        if(!firstName || !lastName || !email || !phoneNo ){
+        if (!firstName || !lastName || !phoneNo) {
             return res.status(400).json({
-                success:false,
-                message:"All fields are mandatory"
+                success: false,
+                message: "First name, Last name, and Phone number are mandatory"
             })
         };
 
-        const trimmedEmail= email.trim()
-        const existingCustomer= await Customer.findOne({email:trimmedEmail});
-
-        if(existingCustomer){
-            return res.status(400).json({
-                success:false,
-                message:"Customers already registered with this email id"
-            })
+        // Check email only if provided
+        let trimmedEmail = null;
+        if (email) {
+            trimmedEmail = email.trim();
+            const existingCustomer = await Customer.findOne({ email: trimmedEmail });
+            if (existingCustomer) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Customer already registered with this email id"
+                })
+            }
         }
 
         // Check for existing phone number
         const existingPhone = await Customer.findOne({ phoneNo });
-        if(existingPhone) {
+        if (existingPhone) {
             return res.status(400).json({
                 success: false,
                 message: "Phone number already registered with another customer"
@@ -42,63 +142,60 @@ exports.createCustomer= async(req,res)=>{
         }
 
         let savedAddress = null;
-        if(address){
-            if(!address.street || !address.city || !address.state || !address.pincode){
+        if (address) {
+            if (!address.street || !address.city || !address.state || !address.pincode) {
                 return res.status(400).json({
-                    success:false,
-                    message:"Address must include street,city,state and pincode",
+                    success: false,
+                    message: "Address must include street,city,state and pincode",
                 });
             }
-            //create the address
             const newAddress = new Address({
                 street: address.street,
-                city:address.city,
-                state:address.state,
-                pincode:address.pincode,
-                additionalDetail:address.additionalDetail
+                city: address.city,
+                state: address.state,
+                pincode: address.pincode,
+                additionalDetail: address.additionalDetail
             });
 
             savedAddress = await newAddress.save();
         }
 
-       
-        
         const newCustomer = new Customer({
             firstName,
             lastName,
-            email,
+            email: trimmedEmail, // will be null/undefined if not given
             phoneNo,
             gstNo,
             panNo,
-            address:savedAddress ?savedAddress._id : null,
-            createdBy:req.user.id
+            address: savedAddress ? savedAddress._id : null,
+            createdBy: req.user.id
         });
 
         const customer = await newCustomer.save();
 
         const populatedCustomer = await customer.populate("address");
         return res.status(200).json({
-            success:true,
-            message:"New Customer created successfully",
+            success: true,
+            message: "New Customer created successfully",
             populatedCustomer,
         })
 
     } catch (error) {
-        console.error("problem in creating new customer",error)
-        // Handle duplicate phone number error
-        if(error.code === 11000 && error.keyPattern && error.keyPattern.phoneNo) {
+        console.error("problem in creating new customer", error)
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.phoneNo) {
             return res.status(400).json({
                 success: false,
                 message: "Phone number already registered with another customer"
             });
         }
         return res.status(400).json({
-            success:false,
-            message:"problem in creating the new customer",
-            error:error.message
+            success: false,
+            message: "problem in creating the new customer",
+            error: error.message
         })
     }
 }
+
 
 
 exports.updateCustomer = async (req, res) => {
@@ -116,6 +213,17 @@ exports.updateCustomer = async (req, res) => {
         }
 
         // Check email uniqueness if email is being updated
+        // if (email && email !== existingCustomer.email) {
+        //     const trimmedEmail = email.trim();
+        //     const emailExists = await Customer.findOne({ email: trimmedEmail, _id: { $ne: id } });
+        //     if (emailExists) {
+        //         return res.status(400).json({
+        //             success: false,
+        //             message: "Email already in use by another customer",
+        //         });
+        //     }
+        // }
+
         if (email && email !== existingCustomer.email) {
             const trimmedEmail = email.trim();
             const emailExists = await Customer.findOne({ email: trimmedEmail, _id: { $ne: id } });
@@ -125,6 +233,7 @@ exports.updateCustomer = async (req, res) => {
                     message: "Email already in use by another customer",
                 });
             }
+            existingCustomer.email = trimmedEmail; // update only if provided
         }
 
         // Check phone number uniqueness if phone number is being updated
@@ -146,14 +255,14 @@ exports.updateCustomer = async (req, res) => {
         if (gstNo !== undefined) existingCustomer.gstNo = gstNo;
         if (panNo !== undefined) existingCustomer.panNo = panNo;
 
-       
+
 
         // Save the updated customer (this triggers the pre-save hook)
         await existingCustomer.save();
 
         // Update the address if provided
         if (address) {
-            
+
             const existingAddress = await Address.findById(existingCustomer.address);
             if (!existingAddress) {
                 return res.status(404).json({
@@ -197,96 +306,96 @@ exports.updateCustomer = async (req, res) => {
 };
 
 
-exports.deleteCustomer = async(req,res)=>{
+exports.deleteCustomer = async (req, res) => {
     try {
         const customer = await Customer.findById(req.params.id);
-        
-        if(!customer){
+
+        if (!customer) {
             return res.status(404).json({
-                success:false,
-                message:"customer not found with this id"
+                success: false,
+                message: "customer not found with this id"
             })
         }
 
         // Check for existing orders more efficiently
-        const hasOrders = await Order.exists({customer: req.params.id});
-        if(hasOrders){
+        const hasOrders = await Order.exists({ customer: req.params.id });
+        if (hasOrders) {
             return res.status(400).json({
-                success:false,
-                message:"cannot delete the customer with the existing order,please try to deactivate instead "
+                success: false,
+                message: "cannot delete the customer with the existing order,please try to deactivate instead "
             });
         }
 
-        if(customer.address){
+        if (customer.address) {
             const address = await Address.findById(customer.address);
-            
 
-            if(address){
+
+            if (address) {
                 await address.deleteOne();
-                
+
             }
 
         }
 
         //delete the customer address
-       
+
 
         await customer.deleteOne();
 
         return res.status(200).json({
-            success:true,
-            message:"customer and their address  removed successfully"
+            success: true,
+            message: "customer and their address  removed successfully"
         })
 
 
-        
+
     } catch (error) {
-        console.log("error occured while removing customer:",error);
+        console.log("error occured while removing customer:", error);
         return res.status(400).json({
-            success:false,
-            message:"problem in removing customer",
-            error:error.message
+            success: false,
+            message: "problem in removing customer",
+            error: error.message
         })
-        
+
     }
 }
 
 
 
-exports.getCustomerOrders= async(req,res)=>{
+exports.getCustomerOrders = async (req, res) => {
     try {
-        const orders= await Order.find({customer:req.params.id})
-        .populate('customer','firstName lastName email')
-        .populate('assignedTo','firstName lastName email')
-        .populate('approvedBy','firstName lastName email')
-        .populate('createdBy','firstName lastName email')
+        const orders = await Order.find({ customer: req.params.id })
+            .populate('customer', 'firstName lastName email')
+            .populate('assignedTo', 'firstName lastName email')
+            .populate('approvedBy', 'firstName lastName email')
+            .populate('createdBy', 'firstName lastName email')
 
-        if(!orders){
+        if (!orders) {
             return res.status(404).json({
-                success:false,
-                message:"No order found"
+                success: false,
+                message: "No order found"
             })
 
         }
         return res.status(200).json({
-            success:true,
-            message:"All orders fetched successfully",
+            success: true,
+            message: "All orders fetched successfully",
             orders,
         })
 
-        
+
     } catch (error) {
         console.log("problem in fetching customer order");
         return res.status(400).json({
-            success:false,
-            message:"problem in fetchin customer order",
-            error :error.message
+            success: false,
+            message: "problem in fetchin customer order",
+            error: error.message
         })
-        
+
     }
 }
 
-exports.getAllCustomers = async(req,res)=>{
+exports.getAllCustomers = async (req, res) => {
     try {
         const customers = await Customer.find()
             .populate('address')

@@ -18,7 +18,6 @@ const customerSchema = new mongoose.Schema({
     },
     email:{
         type:String,
-        required:true,
         trim:true
     },
     gstNo: {

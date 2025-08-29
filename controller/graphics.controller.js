@@ -325,7 +325,7 @@ exports.createOrder = async (req, res) => {
       } = req.body;
 
       // Validate new customer required fields
-      if (!firstName || !lastName || !email || !phoneNo) {
+      if (!firstName || !lastName || !phoneNo) {
         return res.status(400).json({
           success: false,
           message: "First name, last name, email, and phone number are mandatory for new customer"
@@ -1122,11 +1122,11 @@ exports.uploadFile = async (req, res) => {
 
 async function processBatchUpload(files, uploadFunction, batchSize = 50) {
   const results = [];
-  
+
   for (let i = 0; i < files.length; i += batchSize) {
     const batch = files.slice(i, i + batchSize);
-    console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(files.length/batchSize)} (${batch.length} files)`);
-    
+    console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(files.length / batchSize)} (${batch.length} files)`);
+
     try {
       const batchResults = await uploadFunction(batch);
       results.push(...batchResults);
@@ -1135,7 +1135,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
       throw error;
     }
   }
-  
+
   return results;
 }
 
@@ -1147,7 +1147,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 
 //   if (cadFilePaths.length > 0) {
 //     const minLength = Math.min(cadFilePaths.length, imagePaths.length);
-  
+
 //     for (let i = 0; i < minLength; i++) {
 //       galleryEntries.push({
 //         orderId: `DB-${Date.now()}-${i}`,
@@ -1160,7 +1160,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 //         originalCadDoc: cadDocId
 //       });
 //     }
-    
+
 //     // Handle remaining images if there are more images than CAD files
 //     for (let i = minLength; i < imagePaths.length; i++) {
 //       galleryEntries.push({
@@ -1175,7 +1175,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 //       });
 //     }
 //   } else {
-    
+
 //     for (let i = 0; i < imagePaths.length; i++) {
 //       galleryEntries.push({
 //         orderId: `DB-${Date.now()}-${i}`,
@@ -1190,7 +1190,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 //     }
 //   }
 
- 
+
 //   let successfulInserts = 0;
 //   for (let i = 0; i < galleryEntries.length; i += BATCH_SIZE) {
 //     const batch = galleryEntries.slice(i, i + BATCH_SIZE);
@@ -1200,10 +1200,10 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 //       console.log(`Inserted gallery batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(galleryEntries.length/BATCH_SIZE)} (${batch.length} entries)`);
 //     } catch (galleryError) {
 //       console.error(`Error creating gallery entries batch ${i}:`, galleryError);
-     
+
 //     }
 //   }
-  
+
 //   return successfulInserts;
 // }
 
@@ -1248,7 +1248,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 
 //     // Process uploads in batches to prevent memory issues
 //     const BATCH_SIZE = 50;
-    
+
 //     let cadUploadResults = [];
 //     if (cadFiles.length > 0) {
 //       console.log('Starting CAD file uploads...');
@@ -1294,7 +1294,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 //     console.log('Creating gallery entries...');
 //     const cadFilePaths = cadUploadResults.map(file => file.path);
 //     const imagePaths = imageUploadResults.map(file => file.path);
-    
+
 //     const galleryEntriesCreated = await createGalleryEntriesBatch(
 //       cadFilePaths, 
 //       imagePaths, 
@@ -1302,7 +1302,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 //       newCadEntry._id,
 //       Gallery
 //     );
-    
+
 //     console.log(`Gallery entries created: ${galleryEntriesCreated}`);
 
 //     // Log upload
@@ -1334,7 +1334,7 @@ async function processBatchUpload(files, uploadFunction, batchSize = 50) {
 //     console.error("=== UPLOAD ERROR ===");
 //     console.error("Error in uploadFileToDB controller:", error);
 //     console.error("Stack trace:", error.stack);
-    
+
 //     return res.status(500).json({
 //       success: false,
 //       message: "Error uploading files",
@@ -1353,9 +1353,9 @@ async function createGalleryEntriesBatch(cadFilePaths, imagePaths, userId, cadDo
 
   // Get existing gallery entries for this user to check for duplicates
   console.log('Checking for existing gallery entries to prevent duplicates...');
-  const existingEntries = await Gallery.find({ 
+  const existingEntries = await Gallery.find({
     uploadedBy: userId,
-    image: { $in: imagePaths } 
+    image: { $in: imagePaths }
   }).select('image cadFile');
 
   const existingImagePaths = new Set(existingEntries.map(entry => entry.image));
@@ -1365,12 +1365,12 @@ async function createGalleryEntriesBatch(cadFilePaths, imagePaths, userId, cadDo
 
   if (cadFilePaths.length > 0) {
     const minLength = Math.min(cadFilePaths.length, imagePaths.length);
-    
+
     // Create paired entries (CAD + Image)
     for (let i = 0; i < minLength; i++) {
       const imagePath = imagePaths[i];
       const cadPath = cadFilePaths[i];
-      
+
       // Skip if image already exists for this user
       if (existingImagePaths.has(imagePath)) {
         console.log(`Skipping duplicate image: ${imagePath}`);
@@ -1394,11 +1394,11 @@ async function createGalleryEntriesBatch(cadFilePaths, imagePaths, userId, cadDo
         originalCadDoc: cadDocId
       });
     }
-    
+
     // Handle remaining images if there are more images than CAD files
     for (let i = minLength; i < imagePaths.length; i++) {
       const imagePath = imagePaths[i];
-      
+
       // Skip if image already exists for this user
       if (existingImagePaths.has(imagePath)) {
         console.log(`Skipping duplicate image: ${imagePath}`);
@@ -1420,7 +1420,7 @@ async function createGalleryEntriesBatch(cadFilePaths, imagePaths, userId, cadDo
     // Create image-only entries
     for (let i = 0; i < imagePaths.length; i++) {
       const imagePath = imagePaths[i];
-      
+
       // Skip if image already exists for this user
       if (existingImagePaths.has(imagePath)) {
         console.log(`Skipping duplicate image: ${imagePath}`);
@@ -1449,13 +1449,13 @@ async function createGalleryEntriesBatch(cadFilePaths, imagePaths, userId, cadDo
     try {
       await Gallery.insertMany(batch);
       successfulInserts += batch.length;
-      console.log(`Inserted gallery batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(galleryEntries.length/BATCH_SIZE)} (${batch.length} entries)`);
+      console.log(`Inserted gallery batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(galleryEntries.length / BATCH_SIZE)} (${batch.length} entries)`);
     } catch (galleryError) {
       console.error(`Error creating gallery entries batch ${i}:`, galleryError);
       // Continue with next batch instead of failing completely
     }
   }
-  
+
   return {
     successfulInserts,
     skippedDuplicates: imagePaths.length - galleryEntries.length,
@@ -1505,7 +1505,7 @@ exports.uploadFileToDB = async (req, res) => {
 
     // Process uploads in batches to prevent memory issues
     const BATCH_SIZE = 50;
-    
+
     let cadUploadResults = [];
     if (cadFiles.length > 0) {
       console.log('Starting CAD file uploads...');
@@ -1523,7 +1523,7 @@ exports.uploadFileToDB = async (req, res) => {
       console.log('Starting image file uploads...');
       imageUploadResults = await processBatchUpload(imageFiles, localFileUpload, BATCH_SIZE);
       console.log(`Image upload complete: ${imageUploadResults.length} files processed`);
-      
+
       // Log how many were skipped
       const skippedImages = imageUploadResults.filter(result => result.skipped);
       const actualUploads = imageUploadResults.filter(result => !result.skipped);
@@ -1556,15 +1556,15 @@ exports.uploadFileToDB = async (req, res) => {
     console.log('Creating gallery entries with duplicate prevention...');
     const cadFilePaths = cadUploadResults.map(file => file.path);
     const imagePaths = imageUploadResults.map(file => file.path);
-    
+
     const galleryResult = await createGalleryEntriesBatch(
-      cadFilePaths, 
-      imagePaths, 
-      userId, 
+      cadFilePaths,
+      imagePaths,
+      userId,
       newCadEntry._id,
       Gallery
     );
-    
+
     console.log(`Gallery entries created: ${galleryResult.successfulInserts}, Skipped duplicates: ${galleryResult.skippedDuplicates}`);
 
     // Log upload
@@ -1598,7 +1598,7 @@ exports.uploadFileToDB = async (req, res) => {
     console.error("=== UPLOAD ERROR ===");
     console.error("Error in uploadFileToDB controller:", error);
     console.error("Stack trace:", error.stack);
-    
+
     return res.status(500).json({
       success: false,
       message: "Error uploading files",
@@ -1694,7 +1694,7 @@ exports.uploadFileToDB = async (req, res) => {
 //             originalCadDoc: newCadEntry._id
 //           });
 //         }
-        
+
 //         // Handle remaining images if there are more images than CAD files
 //         for (let i = minLength; i < imagePaths.length; i++) {
 //           await Gallery.create({
