@@ -48,7 +48,9 @@ async function findAvailableGraphicsUser() {
                 $expr: {
                   $and: [
                     { $eq: ['$assignedTo', '$$userId'] },
-                    { $in: ['$status', ['graphics_pending', 'InProgress']] }
+                    {
+                      $in: ['$status', ['graphics_pending', 'graphics_in_progress', 'graphics_completed']]
+                    }
                   ]
                 }
               }
@@ -332,16 +334,17 @@ exports.createOrder = async (req, res) => {
         });
       }
 
-      const trimmedEmail = email.trim();
+      // const trimmedEmail = email.trim();
+      const trimmedEmail = email ? email.trim() : "";
 
       // Check for existing email
-      const existingCustomer = await Customer.findOne({ email: trimmedEmail });
-      if (existingCustomer) {
-        return res.status(400).json({
-          success: false,
-          message: "Customer already registered with this email"
-        });
-      }
+      // const existingCustomer = await Customer.findOne({ email: trimmedEmail });
+      // if (existingCustomer) {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: "Customer already registered with this email"
+      //   });
+      // }
 
       // Check for existing phone number
       const existingPhone = await Customer.findOne({ phoneNo });
