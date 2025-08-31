@@ -846,6 +846,36 @@ exports.updateWorkQueueStatus = async (req, res) => {
     if (status === "graphics_in_progress") {
       workQueueItem.startedAt = istTime; // Capture start time
     } else if (status === "graphics_completed") {
+
+
+      // Check for CAD files and images before allowing graphics_completed status
+      const cadDocs = await Cad.find({ order: workQueueItem.order });
+
+      // Check if there are any CAD documents
+      if (!cadDocs || cadDocs.length === 0) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          message: "Cannot mark as completed: No CAD files or images uploaded for this order"
+        });
+      }
+
+      // Check if each CAD document has both CAD files and images
+      const hasRequiredFiles = cadDocs.some(doc =>
+        doc.CadFile && doc.CadFile.length > 0 &&
+        doc.photo && doc.photo.length > 0
+      );
+
+      if (!hasRequiredFiles) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          message: "Cannot mark as completed: Both CAD files and images are required"
+        });
+      }
+
       workQueueItem.completedAt = istTime; // Capture completion time
     }
 
